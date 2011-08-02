@@ -124,19 +124,17 @@ LiveValidation.prototype = {
       this.oldOnChange = this.element.onchange || function(){};
       this.oldOnKeyup = this.element.onkeyup || function(){};
       this.element.onfocus = function(e){ self.doOnFocus(e); return self.oldOnFocus.call(this, e); }
-      if(!this.onlyOnSubmit){
-        switch(this.elementType){
-          case LiveValidation.CHECKBOX:
-            this.element.onclick = function(e){ self.validate(); return self.oldOnClick.call(this, e); }
-          // let it run into the next to add a change event too
-          case LiveValidation.SELECT:
-          case LiveValidation.FILE:
-            this.element.onchange = function(e){ self.validate(); return self.oldOnChange.call(this, e); }
-            break;
-          default:
-            if(!this.onlyOnBlur) this.element.onkeyup = function(e){ self.deferValidation(); return self.oldOnKeyup.call(this, e); }
-      	    this.element.onblur = function(e){ self.doOnBlur(e); return self.oldOnBlur.call(this, e); }
-        }
+      switch(this.elementType){
+         case LiveValidation.CHECKBOX:
+           this.element.onclick = function(e){ self.validate(e); return self.oldOnClick.call(this, e); }
+         // let it run into the next to add a change event too
+         case LiveValidation.SELECT:
+         case LiveValidation.FILE:
+         this.element.onchange = function(e){ self.validate(e); return self.oldOnChange.call(this, e); }
+           break;
+         default:
+           this.element.onkeyup = function(e){ self.deferValidation(e); return self.oldOnKeyup.call(this, e); }
+           this.element.onblur = function(e){ self.doOnBlur(e); return self.oldOnBlur.call(this, e); }
       }
     },
 	
@@ -152,19 +150,17 @@ LiveValidation.prototype = {
 	  }
       // remove events - set them back to the previous events
 	  this.element.onfocus = this.oldOnFocus;
-      if(!this.onlyOnSubmit){
-        switch(this.elementType){
-          case LiveValidation.CHECKBOX:
-            this.element.onclick = this.oldOnClick;
-          // let it run into the next to add a change event too
-          case LiveValidation.SELECT:
-          case LiveValidation.FILE:
-            this.element.onchange = this.oldOnChange;
-            break;
-          default:
-            if(!this.onlyOnBlur) this.element.onkeyup = this.oldOnKeyup;
-      	    this.element.onblur = this.oldOnBlur;
-        }
+      switch(this.elementType){
+        case LiveValidation.CHECKBOX:
+          this.element.onclick = this.oldOnClick;
+        // let it run into the next to add a change event too
+        case LiveValidation.SELECT:
+        case LiveValidation.FILE:
+          this.element.onchange = this.oldOnChange;
+          break;
+        default:
+          this.element.onkeyup = this.oldOnKeyup;
+          this.element.onblur = this.oldOnBlur;
       }
       this.validations = [];
 	  this.removeMessageAndFieldClass();
@@ -178,7 +174,13 @@ LiveValidation.prototype = {
      * @return {Object} - the LiveValidation object itself so that calls can be chained
      */
     add: function(validationFunction, validationParamsObj){
-      this.validations.push( {type: validationFunction, params: validationParamsObj || {} } );
+      this.validations.push({
+        type: validationFunction,
+        onlyOnBlur: validationParamsObj && validationParamsObj.onlyOnBlur !== undefined ? validationParamsObj.onlyOnBlur : this.onlyOnBlur,
+        onlyOnSubmit: validationParamsObj && validationParamsObj.onlyOnSubmit !== undefined ? validationParamsObj.onlyOnSubmit : this.onlyOnSubmit,
+        params: validationParamsObj || {}
+      });
+
       return this;
     },
     
@@ -207,7 +209,7 @@ LiveValidation.prototype = {
       if(this.wait >= 300) this.removeMessageAndFieldClass();
       var self = this;
       if(this.timeout) clearTimeout(self.timeout);
-      this.timeout = setTimeout( function(){ self.validate() }, self.wait); 
+      this.timeout = setTimeout( function(){ self.validate(e); }, self.wait);
     },
         
     /**
@@ -258,14 +260,13 @@ LiveValidation.prototype = {
     /**
      *	loops through all the validations added to the LiveValidation object and checks them one by one
      *
-     *	@param validationFunction {Function} - validation function to be used (ie Validate.Presence )
-     *	@param validationParamsObj {Object} - parameters for doing the validation, if wanted or necessary
+     *	@param validationElements {Array} - validation functions to be used
      *  @return {Boolean} - whether the all the validations passed or if one failed
      */
-    doValidations: function(){
+	doValidations: function(validationElements){
       	this.validationFailed = false;
-      	for(var i = 0, len = this.validations.length; i < len; ++i){
-			this.validationFailed = !this.validateElement(this.validations[i].type, this.validations[i].params);
+		for(var i = 0, len = validationElements.length; i < len; ++i){
+			this.validationFailed = !this.validateElement(validationElements[i].type, validationElements[i].params);
     		if(this.validationFailed) return false;	
     	}
     	this.message = this.validMessage;
@@ -322,10 +323,20 @@ LiveValidation.prototype = {
      *
      *  @return {Boolean} - whether the all the validations passed or if one failed
      */
-    validate: function(){
+	validate: function(e){
       if(!this.element.disabled){
+		var validationElements = [], i = -1, element;
+		while(element = this.validations[++i]){
+			if(!e || (e.type === 'blur' && !element.onlyOnSubmit) || (!element.onlyOnBlur && !element.onlyOnSubmit)){
+				validationElements.push(element);
+			}
+		}
+		if (!validationElements.length) {
+			return true;
+		}
+
 		this.beforeValidation();
-		var isValid = this.doValidations();
+		var isValid = this.doValidations(validationElements);
 		if(isValid){
 			this.beforeValid();
 			this.onValid();

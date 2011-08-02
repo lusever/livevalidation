@@ -835,24 +835,24 @@ function runTests(){
     testDoValidations: function(){ with(this){
         subjects.lv.add(Validate.Presence);
         // test that it returns false if the validation should fail
-        assertEqual(false, subjects.lv.doValidations(), "Should return false as this should fail");
+		assertEqual(false, subjects.lv.doValidations(subjects.lv.validations), "Should return false as this should fail");
         assert(subjects.lv.displayMessageWhenEmpty, "subjects.lv.displayMessageWhenEmpty should be true for a presence validation");
         // test that it returns true if the validation should pass
         subjects.lv.element.value = 'hello world';
-        assert(subjects.lv.doValidations(), "Should return true as this should pass");
+		assert(subjects.lv.doValidations(subjects.lv.validations), "Should return true as this should pass");
         // test that stacked validations fail in precedence, (first one takes precedence etc)
         subjects.lv.element.value = '';
         subjects.lv.add(Validate.Format, { pattern: /hello/i });
-        subjects.lv.doValidations();
+		subjects.lv.doValidations(subjects.lv.validations);
         assertEqual("Can't be empty!" , subjects.lv.message, "Presence should fail first");
         subjects.lv.element.value = 'howdy';
-        subjects.lv.doValidations();
+		subjects.lv.doValidations(subjects.lv.validations);
         assertEqual("Not valid!" , subjects.lv.message, "Format should fail second");
         // test that displayMessageWhenEmpty is false for a format validation
         assert(subjects.lv.displayMessageWhenEmpty, "subjects.lv.displayMessageWhenEmpty should be false for a format validation");
         // tets that stacked validations can all be performed and return true if they all pass
         subjects.lv.element.value = 'hello world';
-        assert(subjects.lv.doValidations(), "All validations should pass so should return true");
+		assert(subjects.lv.doValidations(subjects.lv.validations), "All validations should pass so should return true");
     }},
     
     testValidate: function(){ with(this){
@@ -1004,6 +1004,20 @@ function runTests(){
         assertEqual("Thankyou!", subjects.lv.message, "Message should be set to default valid message");
     }},
     
+	testOnlyOnBlurInParams: function(){ with(this){
+		subjects.lv.destroy(); //destroy previous to remove events etc.
+		subjects.lv = new LiveValidation('myText');
+		subjects.lv.add(Validate.Presence, {onlyOnBlur: true});
+		Event.simulateEvent(subjects.lv.element, 'focus');
+		subjects.lv.element.value = '';
+		Event.simulateEvent(subjects.lv.element, 'blur');
+		assertEqual("Can't be empty!", subjects.lv.message, "Message should be set to default Presence failure message");
+		Event.simulateEvent(subjects.lv.element, 'focus');
+		subjects.lv.element.value = 'hello world';
+		Event.simulateEvent(subjects.lv.element, 'blur');
+		assertEqual("Thankyou!", subjects.lv.message, "Message should be set to default valid message");
+	}},
+
     testDeferValidation: function(){ with(this){
 		subjects.lv.destroy(); //destroy previous to remove events etc.
         subjects.lv = new LiveValidation('myText', {wait: 1500});
