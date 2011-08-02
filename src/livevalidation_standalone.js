@@ -11,7 +11,7 @@
  *	@param optionsObj {Object} - general options, see below for details
  *
  *	optionsObj properties:
- *							validMessage {String} 	- the message to show when the field passes validation (set to '' or false to not insert any message)
+ *							validMessage {String} 	- the message to show when the field passes validation (set to false if there are no messages to be inserted)
  *													  (DEFAULT: "Thankyou!")
  *                          beforeValidation {Function} - function to execute directly before validation is performed
  *													  (DEFAULT: function(){})
@@ -96,7 +96,7 @@ LiveValidation.prototype = {
       this.form = this.element.form;
       // options
       var options = optionsObj || {};
-      this.validMessage = options.validMessage || 'Thankyou!';
+      this.validMessage = options.validMessage === undefined ? 'Thankyou!' : options.validMessage;
       var node = options.insertAfterWhatNode || this.element;
 	  this.insertAfterWhatNode = node.nodeType ? node : document.getElementById(node);
       this.onlyOnBlur =  options.onlyOnBlur || false;
@@ -401,7 +401,7 @@ LiveValidation.prototype = {
      */
     insertMessage: function(elementToInsert){
       	this.removeMessage();
-		if(!this.validationFailed && !this.validMessage) return; // dont insert anything if vaalidMesssage has been set to false or empty string
+		if(!this.validationFailed && typeof this.validMessage !== 'string') return; // don't insert anything if validMesssage has been set to false
       	if( (this.displayMessageWhenEmpty 
 	      && (this.elementType == LiveValidation.CHECKBOX || this.element.value == ''))
     	  || this.element.value != '' ){
